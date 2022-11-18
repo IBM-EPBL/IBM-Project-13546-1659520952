@@ -42,7 +42,7 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///site.db'
 
 # Load your trained model
 model = load_model('fruit.h5')
-model = load_model('vegetable.h5')
+# model = load_model('vegetable.h5')
 
 
 print('Model loaded. Check http://127.0.0.1:5000/')
