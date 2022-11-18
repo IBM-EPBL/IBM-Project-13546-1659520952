@@ -7,6 +7,23 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import jwt
 from datetime import datetime, timedelta
 from functools import wraps
+# coding=utf-8
+import sys
+import os
+import glob
+import re
+import numpy as np
+
+# Keras
+from keras.applications.imagenet_utils import preprocess_input, decode_predictions
+from keras.models import load_model
+from keras.preprocessing import image
+
+# Flask utils
+from werkzeug.utils import secure_filename
+from gevent.pywsgi import WSGIServer
+
+
 
 # creates Flask object
 app = Flask(__name__)
@@ -19,10 +36,37 @@ app = Flask(__name__)
 # app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = True
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///site.db'
 
+
+# Model saved with Keras model.save()
+
+
+# Load your trained model
+model = load_model('fruit.h5')
+model = load_model('vegetable.h5')
+
+
+print('Model loaded. Check http://127.0.0.1:5000/')
+
 # creates SQLALCHEMY object
 db = SQLAlchemy(app)
 
 app.app_context().push()
+
+
+def model_predict(img_path, model):
+    img = image.load_img(img_path, target_size=(224, 224))
+
+    # Preprocessing the image
+    x = image.img_to_array(img)
+    # x = np.true_divide(x, 255)
+    x = np.expand_dims(x, axis=0)
+
+    # Be careful how your trained model deals with the input
+    # otherwise, it won't make correct prediction!
+    x = preprocess_input(x, mode='caffe')
+
+    preds = model.predict(x)
+    return preds
 
 # Database ORMs
 class User(db.Model):
@@ -84,8 +128,23 @@ def get_all_users(current_user):
 
 
 
-@app.route('/')
+@app.route('/',methods= ['GET','POST'])
 def dash():
+	if request.method == 'POST':
+        # Get the file from post request
+		f = request.files['file']
+		# Save the file to ./uploads
+		basepath = os.path.dirname(__file__)
+		file_path = os.path.join(
+			basepath, 'uploads', secure_filename(f.filename))
+		f.save(file_path)
+
+		preds = model_predict(file_path, model)
+		pred_class = decode_predictions(preds, top=1)
+		result = str(pred_class[0][0][1])               # Convert to string
+		return render_template("base.html",{result : result})
+
+
 	return render_template("base.html")
 
 
